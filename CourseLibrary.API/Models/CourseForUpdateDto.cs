@@ -6,6 +6,6 @@ namespace CourseLibrary.API.Models
     {
 
         [Required(ErrorMessage = "Description required")]
-        public override string Description { get => base.Description; set => base.Description = value } 
+        public override string Description { get => base.Description; set => base.Description = value; } 
     }
 }

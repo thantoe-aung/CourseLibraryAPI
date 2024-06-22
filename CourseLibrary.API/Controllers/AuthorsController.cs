@@ -1,9 +1,11 @@
 ﻿
 using AutoMapper;
+using CourseLibrary.API.Helpers;
 using CourseLibrary.API.Models;
 using CourseLibrary.API.ResourceParameters;
 using CourseLibrary.API.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace CourseLibrary.API.Controllers;
 
@@ -24,16 +26,62 @@ public class AuthorsController : ControllerBase
             throw new ArgumentNullException(nameof(mapper));
     }
 
-    [HttpGet]
+    [HttpGet(Name = "GetAuthors")]
     [HttpHead]
-    public async Task<ActionResult<IEnumerable<AuthorDto>>> GetAuthors([FromQuery]AuthorResourceParameter authorResourceParameter)
-    { 
+    public async Task<ActionResult<IEnumerable<AuthorDto>>> GetAuthors([FromQuery] AuthorResourceParameter authorResourceParameter)
+    {
         // get authors from repo
         var authorsFromRepo = await _courseLibraryRepository
-            .GetAuthorsAsync(authorResourceParameter); 
+            .GetAuthorsAsync(authorResourceParameter);
 
-        // return them
+        var previousPageLink = authorsFromRepo.HasPrevious ? CreateAuthorResourceUri(authorResourceParameter, ResourceUriType.PreviousPage) : null;
+        var nextPageLink = authorsFromRepo.HasPrevious ? CreateAuthorResourceUri(authorResourceParameter, ResourceUriType.NextPage) : null;
+
+        var paginationData = new
+        {
+            totalCount = authorsFromRepo.TotalCount,
+            pageSize = authorsFromRepo.PageSize,
+            currentPage = authorsFromRepo.CurrentPage,
+            totalPages = authorsFromRepo.TotalPages,
+            previousPageLink = previousPageLink,
+            nextPageLink = nextPageLink
+        };
+
+        Response.Headers.Add("X-Pagination",JsonSerializer.Serialize(paginationData));
+
         return Ok(_mapper.Map<IEnumerable<AuthorDto>>(authorsFromRepo));
+    }
+
+    private string? CreateAuthorResourceUri(AuthorResourceParameter author, ResourceUriType type)
+    {
+        switch (type)
+        {
+            case ResourceUriType.PreviousPage:
+                return Url.Link("GetAuthors", new
+                {
+                    pageNumber = author.PageNumber -1,
+                    pageSize = author.PageSize,
+                    mainCategory = author.mainCategory,
+                    searchQuery = author.searchQuery
+                });
+               
+            case ResourceUriType.NextPage:
+                return Url.Link("GetAuthors", new
+                {
+                    pageNumber = author.PageNumber + 1,
+                    pageSize = author.PageSize,
+                    mainCategory = author.mainCategory,
+                    searchQuery = author.searchQuery
+                });               
+            default:
+                return Url.Link("GetAuthors", new
+                {
+                    pageNumber = author.PageNumber,
+                    pageSize = author.PageSize,
+                    mainCategory = author.mainCategory,
+                    searchQuery = author.searchQuery
+                });
+        }
     }
 
     [HttpGet("{authorId}", Name = "GetAuthor")]

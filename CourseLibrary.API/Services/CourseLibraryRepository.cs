@@ -1,5 +1,6 @@
 ﻿using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Entities;
+using CourseLibrary.API.Helpers;
 using CourseLibrary.API.ResourceParameters;
 using Microsoft.EntityFrameworkCore;
 
@@ -150,12 +151,12 @@ public class CourseLibraryRepository : ICourseLibraryRepository
         return (await _context.SaveChangesAsync() >= 0);
     }
 
-    public async Task<IEnumerable<Author>> GetAuthorsAsync(AuthorResourceParameter authorResourceParameter)
+    public async Task<PagedList<Author>> GetAuthorsAsync(AuthorResourceParameter authorResourceParameter)
     {
-        if (string.IsNullOrEmpty(authorResourceParameter.mainCategory) && string.IsNullOrWhiteSpace(authorResourceParameter.searchQuery))
-        {
-            return await GetAuthorsAsync();
-        }
+        //if (string.IsNullOrEmpty(authorResourceParameter.mainCategory) && string.IsNullOrWhiteSpace(authorResourceParameter.searchQuery))
+        //{
+        //    return await GetAuthorsAsync();
+        //}
 
         var collection = _context.Authors as IQueryable<Author>;
         if (!string.IsNullOrEmpty(authorResourceParameter.mainCategory))
@@ -172,9 +173,13 @@ public class CourseLibraryRepository : ICourseLibraryRepository
                                 || x.LastName.Contains(searchQuery));
         }
 
-        return await collection.ToListAsync();
-        
 
+
+        //return await collection.Skip(authorResourceParameter.PageSize  * (authorResourceParameter.PageNumber -1))
+        //    .Take(authorResourceParameter.PageSize)
+        //    .ToListAsync();
+
+        return await PagedList<Author>.createAsync(collection, authorResourceParameter.PageNumber, authorResourceParameter.PageSize);
     }
 }
 

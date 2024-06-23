@@ -19,5 +19,7 @@
         public int PageNumber { get; set; } = 1;
 
         public string OrderBy { get; set; } = "Name";
+
+        public string? Fields { get; set; }
     }
 }

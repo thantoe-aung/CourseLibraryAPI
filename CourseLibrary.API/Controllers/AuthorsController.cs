@@ -5,6 +5,7 @@ using CourseLibrary.API.Models;
 using CourseLibrary.API.ResourceParameters;
 using CourseLibrary.API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using System.Text.Json;
 
 namespace CourseLibrary.API.Controllers;
@@ -15,21 +16,35 @@ public class AuthorsController : ControllerBase
 {
     private readonly ICourseLibraryRepository _courseLibraryRepository;
     private readonly IMapper _mapper;
+    private readonly IPropertyCheckerService _propertyCheckerService;
+    private readonly ProblemDetailsFactory _problemDetailsFactory;
 
     public AuthorsController(
         ICourseLibraryRepository courseLibraryRepository,
-        IMapper mapper)
+        IMapper mapper, IPropertyCheckerService propertyCheckerService, ProblemDetailsFactory problemDetailsFactory)
     {
         _courseLibraryRepository = courseLibraryRepository ??
             throw new ArgumentNullException(nameof(courseLibraryRepository));
         _mapper = mapper ??
             throw new ArgumentNullException(nameof(mapper));
+        _problemDetailsFactory = problemDetailsFactory ?? throw new ArgumentNullException(nameof(problemDetailsFactory));
+        _propertyCheckerService = propertyCheckerService ?? throw new ArgumentNullException(nameof(propertyCheckerService));
+
     }
 
     [HttpGet(Name = "GetAuthors")]
     [HttpHead]
-    public async Task<ActionResult<IEnumerable<AuthorDto>>> GetAuthors([FromQuery] AuthorResourceParameter authorResourceParameter)
+    public async Task<ActionResult<IActionResult>> GetAuthors([FromQuery] AuthorResourceParameter authorResourceParameter)
     {
+
+        if (!_propertyCheckerService.CheckPropertyExist<AuthorDto>(authorResourceParameter.Fields))
+        {
+            return BadRequest(_problemDetailsFactory.CreateProblemDetails(HttpContext,
+                statusCode : 400,
+                detail : $"Property not exist"
+                ));
+        }
+       
         // get authors from repo
         var authorsFromRepo = await _courseLibraryRepository
             .GetAuthorsAsync(authorResourceParameter);
@@ -49,7 +64,7 @@ public class AuthorsController : ControllerBase
 
         Response.Headers.Add("X-Pagination",JsonSerializer.Serialize(paginationData));
 
-        return Ok(_mapper.Map<IEnumerable<AuthorDto>>(authorsFromRepo));
+        return Ok(_mapper.Map<IEnumerable<AuthorDto>>(authorsFromRepo).ShapeData(authorResourceParameter.Fields));
     }
 
     private string? CreateAuthorResourceUri(AuthorResourceParameter author, ResourceUriType type)
@@ -58,7 +73,9 @@ public class AuthorsController : ControllerBase
         {
             case ResourceUriType.PreviousPage:
                 return Url.Link("GetAuthors", new
-                {
+                {   
+                    fields = author.Fields,
+                    orderBy = author.OrderBy,
                     pageNumber = author.PageNumber -1,
                     pageSize = author.PageSize,
                     mainCategory = author.mainCategory,
@@ -68,6 +85,8 @@ public class AuthorsController : ControllerBase
             case ResourceUriType.NextPage:
                 return Url.Link("GetAuthors", new
                 {
+                    fields = author.Fields,
+                    orderBy = author.OrderBy,
                     pageNumber = author.PageNumber + 1,
                     pageSize = author.PageSize,
                     mainCategory = author.mainCategory,
@@ -76,6 +95,8 @@ public class AuthorsController : ControllerBase
             default:
                 return Url.Link("GetAuthors", new
                 {
+                    fields = author.Fields,
+                    orderBy = author.OrderBy,
                     pageNumber = author.PageNumber,
                     pageSize = author.PageSize,
                     mainCategory = author.mainCategory,
@@ -85,8 +106,18 @@ public class AuthorsController : ControllerBase
     }
 
     [HttpGet("{authorId}", Name = "GetAuthor")]
-    public async Task<ActionResult<AuthorDto>> GetAuthor(Guid authorId)
+    public async Task<IActionResult> GetAuthor(Guid authorId,string? fields)
     {
+
+
+        if (!_propertyCheckerService.CheckPropertyExist<AuthorDto>(fields))
+        {
+            return BadRequest(_problemDetailsFactory.CreateProblemDetails(HttpContext,
+                statusCode: 400,
+                detail: $"Property not exist"
+                ));
+        }
+
         // get author from repo
         var authorFromRepo = await _courseLibraryRepository.GetAuthorAsync(authorId);
 
@@ -96,7 +127,7 @@ public class AuthorsController : ControllerBase
         }
 
         // return author
-        return Ok(_mapper.Map<AuthorDto>(authorFromRepo));
+        return Ok(_mapper.Map<AuthorDto>(authorFromRepo).ShapeData(fields));
     }
 
     [HttpPost]

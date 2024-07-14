@@ -15,6 +15,7 @@ internal static class StartupHelperExtensions
         builder.Services.AddControllers(options =>
         {
             options.ReturnHttpNotAcceptable = true;
+            options.CacheProfiles.Add("CustomCache", new() { Duration = 240 });
             
         }).AddNewtonsoftJson(setupAction =>
         {
@@ -44,6 +45,8 @@ internal static class StartupHelperExtensions
             options.UseSqlite(@"Data Source=library.db");
         });
 
+        builder.Services.AddResponseCaching();
+
         builder.Services.AddAutoMapper(
             AppDomain.CurrentDomain.GetAssemblies());
 
@@ -58,6 +61,8 @@ internal static class StartupHelperExtensions
             app.UseDeveloperExceptionPage();
         }
  
+        app.UseResponseCaching();
+
         app.UseAuthorization();
 
         app.MapControllers(); 

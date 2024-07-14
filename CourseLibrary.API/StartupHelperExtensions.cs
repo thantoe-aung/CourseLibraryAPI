@@ -1,5 +1,7 @@
 ﻿using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Serialization;
 
@@ -19,6 +21,16 @@ internal static class StartupHelperExtensions
             setupAction.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
         })
         .AddXmlDataContractSerializerFormatters();
+
+        builder.Services.Configure<MvcOptions>(options =>
+        {
+            var outputFormatter = options.OutputFormatters.OfType<NewtonsoftJsonOutputFormatter>().FirstOrDefault();
+
+            if(outputFormatter != null)
+            {
+                outputFormatter.SupportedMediaTypes.Add("application/vnd.marvin.hateoas+json");
+            }
+        });
 
         builder.Services.AddTransient<IPropertyMappingService, PropertyMappingService>();
 
